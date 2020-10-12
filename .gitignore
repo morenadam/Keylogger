@@ -5,6 +5,8 @@ log_results.txt
 
 *.txt
 
+*.wav
+
 venv
 
 

